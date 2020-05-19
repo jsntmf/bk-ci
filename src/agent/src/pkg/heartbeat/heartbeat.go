@@ -34,35 +34,33 @@ import (
 	"pkg/job"
 	"pkg/upgrade"
 	"pkg/util"
+	"pkg/util/systemutil"
 	"time"
 )
 
 func DoAgentHeartbeat() {
 	for {
-		err := newAgentHeartbeat()
-		if err != nil {
-			logs.Info("new heartbeat failed, try old heartbeat")
-		}
+		agentHeartbeat()
 		time.Sleep(10 * time.Second)
 	}
 }
 
-func newAgentHeartbeat() error {
-	result, err := api.NewAgentHeartbeat(job.GBuildManager.GetInstances())
+func agentHeartbeat() error {
+	result, err := api.Heartbeat(job.GBuildManager.GetInstances())
 	if err != nil {
-		logs.Error("agent heartbeat(new) failed: ", err.Error())
-		return errors.New("agent heartbeat(new) failed")
+		logs.Error("agent heartbeat failed: ", err.Error())
+		return errors.New("agent heartbeat failed")
 	}
 	if result.IsNotOk() {
-		logs.Error("agent heartbeat(new) failed: ", result.Message)
-		return errors.New("agent heartbeat(new) failed")
+		logs.Error("agent heartbeat failed: ", result.Message)
+		return errors.New("agent heartbeat failed")
 	}
 
 	heartbeatResponse := new(api.AgentHeartbeatResponse)
 	err = util.ParseJsonToData(result.Data, &heartbeatResponse)
 	if err != nil {
-		logs.Error("agent heartbeat(new) failed: ", err.Error())
-		return errors.New("agent heartbeat(new) failed")
+		logs.Error("agent heartbeat failed: ", err.Error())
+		return errors.New("agent heartbeat failed")
 	}
 
 	if heartbeatResponse.AgentStatus == config.AgentStatusDelete {
@@ -70,14 +68,32 @@ func newAgentHeartbeat() error {
 		return nil
 	}
 
-	// 修改agent配置
+	// agent配置
+	configChanged := false
 	if config.GAgentConfig.ParallelTaskCount != heartbeatResponse.ParallelTaskCount {
 		config.GAgentConfig.ParallelTaskCount = heartbeatResponse.ParallelTaskCount
+		configChanged = true
+	}
+	if heartbeatResponse.Gateway != "" &&  heartbeatResponse.Gateway != config.GAgentConfig.Gateway {
+		config.GAgentConfig.Gateway = heartbeatResponse.Gateway
+		configChanged = true
+	}
+	if configChanged {
 		config.GAgentConfig.SaveConfig()
 	}
 
 	// agent环境变量
 	config.GEnvVars = heartbeatResponse.Envs
-	logs.Info("agent heartbeat(new) done")
+
+	// 检测agent版本与agent文件是否匹配
+	if config.AgentVersion != heartbeatResponse.MasterVersion {
+		agentFileVersion := config.DetectAgentVersion()
+		if agentFileVersion != "" && config.AgentVersion != agentFileVersion {
+			logs.Warn("agent version mismatch, exiting agent process")
+			systemutil.ExitProcess(1)
+		}
+	}
+
+	logs.Info("agent heartbeat done")
 	return nil
 }

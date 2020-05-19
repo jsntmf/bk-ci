@@ -1,19 +1,45 @@
 <template>
-    <div v-clickoutside="hideUserInfo" :class="{ &quot;devops-user-info&quot;: true, &quot;active&quot;: show }">
-        <div class="user-entry" @click.stop="toggleUserInfo">
-            {{username}}
-            <i class="bk-icon icon-down-shape" />
+    <div
+        v-clickoutside="hideUserInfo"
+        :class="{ &quot;devops-user-info&quot;: true, &quot;active&quot;: show }"
+    >
+        <div
+            class="user-entry"
+            @click.stop="toggleUserInfo"
+        >
+            {{ username }}
+            <i class="devops-icon icon-down-shape" />
         </div>
-        <div class="user-info-dropmenu" v-if="show">
+        <div
+            v-if="show"
+            class="user-info-dropmenu"
+        >
             <p class="user-avatar">
-                <!--<img :src="avatarUrl" alt="用户头像" />-->
-                <span>{{chineseName}}</span>
+                <!-- <img
+                    :src="avatarUrl"
+                    alt="userAvatar"
+                > -->
+                <span>{{ chineseName }}</span>
             </p>
             <slot name="menu">
                 <ul>
-                    <li v-for="(item, index) in menu" :key="index">
-                        <router-link v-if="item.to" class="user-menu-item" @click.native="hideUserInfo" :to="item.to">{{item.label}}</router-link>
-                        <span v-else-if="item.cb" class="user-menu-item" @click.stop="item.cb">{{item.label}}</span>
+                    <li
+                        v-for="(item, index) in menu"
+                        :key="index"
+                    >
+                        <router-link
+                            v-if="item.to"
+                            class="user-menu-item"
+                            :to="item.to"
+                            @click.native="hideUserInfo"
+                        >
+                            {{ item.label }}
+                        </router-link>
+                        <span
+                            v-else-if="item.cb"
+                            class="user-menu-item"
+                            @click.stop="item.cb"
+                        >{{ item.label }}</span>
                     </li>
                 </ul>
             </slot>
@@ -45,11 +71,11 @@
 
         @Action togglePopupShow
 
-        toggleUserInfo (show: boolean) :void {
+        toggleUserInfo (show: boolean): void {
             this.show = !this.show
         }
 
-        hideUserInfo () : void {
+        hideUserInfo (): void {
             this.show = false
         }
 
@@ -61,12 +87,24 @@
         }
 
         get menu (): object[] {
-            return [
-                {
-                    to: '/console/pm',
-                    label: '项目管理'
-                }
-            ]
+            try {
+                return [
+                    {
+                        to: '/console/pm',
+                        label: this.$t('projectManage')
+                    },
+                    {
+                        cb: this.logout,
+                        label: this.$t('logout')
+                    }
+                ]
+            } catch (e) {
+                console.warn(e)
+                return []
+            }
+        }
+        logout (): void {
+            // logout logic
         }
     }
 </script>
@@ -90,7 +128,7 @@
             align-items: center;
         }
 
-        .bk-icon.icon-down-shape {
+        .devops-icon.icon-down-shape {
             vertical-align: -2px;
         }
 

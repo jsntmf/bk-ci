@@ -28,28 +28,88 @@ package upgrader
 
 import (
 	"errors"
+	"fmt"
 	"github.com/astaxie/beego/logs"
+	"github.com/gofrs/flock"
+	"os"
+	"pkg/api"
 	"pkg/config"
 	"pkg/util/command"
 	"pkg/util/fileutil"
 	"pkg/util/systemutil"
+	"strconv"
 	"time"
 )
 
 func DoUpgradeAgent() error {
 	logs.Info("start upgrade agent")
+	config.Init()
 
-	logs.Info("wait 15 seconds for agent to stop")
-	time.Sleep(10 * time.Second)
-
-	err := replaceAgentFile()
-	if err != nil {
-		logs.Error("replace agent file failed: ", err.Error())
-		return errors.New("replace agent file failed")
+	totalLock := flock.New(fmt.Sprintf("%s/%s.lock", systemutil.GetRuntimeDir(), systemutil.TotalLock))
+	err := totalLock.Lock()
+	if err = totalLock.Lock(); err != nil {
+		logs.Error("get total lock failed, exit", err.Error())
+		return errors.New("get total lock failed")
 	}
 
-	logs.Info("agent upgrade done, upgrader exiting")
+	logs.Info("wait 10 seconds for agent to stop")
+	time.Sleep(10 * time.Second)
+
+	// GO_20190807 版非windows agent做重装升级替换daemon，其他只替换devopsAgent
+	currentAgentVersion := config.GAgentEnv.AgentVersion
+	if !systemutil.IsWindows() && currentAgentVersion == "GO_20190807" {
+		err := UninstallAgent()
+		if err != nil {
+			return errors.New("uninstall agent failed")
+		}
+
+		fileutil.TryRemoveFile(systemutil.GetWorkDir() + "/agent.zip")
+		api.DownloadAgentInstallScript(systemutil.GetWorkDir() + "/" + config.GetInstallScript())
+
+		totalLock.Unlock()
+		logs.Info(totalLock.Unlock())
+		err = InstallAgent()
+		if err != nil {
+			logs.Error("install agent failed: ", err)
+			return errors.New("install agent failed")
+		}
+
+		logs.Info("reinstall agent done, upgrade process exiting")
+		return nil
+	} else {
+		err = replaceAgentFile()
+		if err != nil {
+			logs.Error("replace agent file failed: ", err.Error())
+			return errors.New("replace agent file failed")
+		}
+		tryKillAgentProcess()
+		totalLock.Unlock()
+	}
+	logs.Info("agent upgrade done, upgrade process exiting")
 	return nil
+}
+
+func tryKillAgentProcess() {
+	logs.Info("try kill agent process")
+	pidFile := fmt.Sprintf("%s/agent.pid", systemutil.GetRuntimeDir())
+	agentPid, err := fileutil.GetString(pidFile)
+	if err != nil {
+		logs.Warn("read pid failed")
+		return
+	}
+	intPid, err := strconv.Atoi(agentPid)
+	if err != nil {
+		logs.Warn("parse pid failed")
+		return
+	}
+	process, err := os.FindProcess(intPid)
+	if err != nil || process == nil {
+		logs.Warn("find process failed")
+		return
+	} else {
+		logs.Info("kill agent process, pid: ", intPid)
+		process.Kill()
+	}
 }
 
 func DoUninstallAgent() error {
@@ -69,9 +129,10 @@ func UninstallAgent() error {
 	output, err := command.RunCommand(startCmd, []string{} /*args*/, workDir, nil)
 	if err != nil {
 		logs.Error("run uninstall script failed: ", err.Error())
+		logs.Error("output: ", string(output))
 		return errors.New("run uninstall script failed")
 	}
-	logs.Info("script output: ", string(output))
+	logs.Info("output: ", string(output))
 	return nil
 }
 
@@ -82,10 +143,11 @@ func StopAgent() error {
 	startCmd := workDir + "/" + config.GetStopScript()
 	output, err := command.RunCommand(startCmd, []string{} /*args*/, workDir, nil)
 	if err != nil {
-		logs.Error("run uninstall script failed: ", err.Error())
-		return errors.New("run uninstall script failed")
+		logs.Error("run stop script failed: ", err.Error())
+		logs.Error("output: ", string(output))
+		return errors.New("run stop script failed")
 	}
-	logs.Info("script output: ", string(output))
+	logs.Info("output: ", string(output))
 	return nil
 }
 
@@ -96,21 +158,19 @@ func StartAgent() error {
 	startCmd := workDir + "/" + config.GetStartScript()
 	output, err := command.RunCommand(startCmd, []string{} /*args*/, workDir, nil)
 	if err != nil {
-		logs.Error("run uninstall script failed: ", err.Error())
-		return errors.New("run uninstall script failed")
+		logs.Error("run start script failed: ", err.Error())
+		logs.Error("output: ", string(output))
+		return errors.New("run start script failed")
 	}
-	logs.Info("script output: ", string(output))
+	logs.Info("output: ", string(output))
 	return nil
 }
 
 func replaceAgentFile() error {
 	logs.Info("replace agent file")
-	src := systemutil.GetWorkDir() + "/tmp/" + config.GetClienAgentFile()
+	src := systemutil.GetUpgradeDir() + "/" + config.GetClienAgentFile()
 	dst := systemutil.GetWorkDir() + "/" + config.GetClienAgentFile()
 	_, err := fileutil.CopyFile(src, dst, true)
-	if err != nil {
-		return err
-	}
 	return err
 }
 
@@ -118,13 +178,19 @@ func InstallAgent() error {
 	logs.Info("start install agent")
 
 	workDir := systemutil.GetWorkDir()
-
 	startCmd := workDir + "/" + config.GetInstallScript()
+
+	err := fileutil.SetExecutable(startCmd)
+	if err != nil {
+		return fmt.Errorf("chmod install script failed: %s", err.Error())
+	}
+
 	output, err := command.RunCommand(startCmd, []string{} /*args*/, workDir, nil)
 	if err != nil {
 		logs.Error("run install script failed: ", err.Error())
+		logs.Error("output: ", string(output))
 		return errors.New("run install script failed")
 	}
-	logs.Info("script output: ", string(output))
+	logs.Info("output: ", string(output))
 	return nil
 }

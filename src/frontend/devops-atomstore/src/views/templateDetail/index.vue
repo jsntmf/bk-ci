@@ -30,7 +30,7 @@
                     title: ''
                 },
                 sideMenuNav: {
-                    backUrl: 'atomList',
+                    backUrl: 'workList',
                     backType: 'template',
                     icon: 'atom-story',
                     title: '',
@@ -41,35 +41,31 @@
                         list: [
                             {
                                 id: 'tplOverview',
-                                name: '概览',
+                                selectId: ['tplOverview'],
+                                name: this.$t('store.概览'),
                                 icon: 'icon-overview',
                                 showChildren: false
-                            }
+                            },
                             // {
                             //     id: 'detail',
                             //     name: '详情',
                             //     icon: 'icon-txt',
                             //     showChildren: false
                             // },
-                            // {
-                            //     id: 'tplSettings',
-                            //     name: '设置',
-                            //     icon: 'icon-cog',
-                            //     isOpen: false,
-                            //     showChildren: true,
-                            //     children: [
-                            //         // {
-                            //         //     id: 'member',
-                            //         //     name: '成员管理',
-                            //         //     icon: ''
-                            //         // },
-                            //         {
-                            //             id: 'tplVisible',
-                            //             name: '可见范围',
-                            //             icon: ''
-                            //         }
-                            //     ]
-                            // }
+                            {
+                                id: 'tplSettings',
+                                selectId: ['tplSettings'],
+                                name: this.$t('store.设置'),
+                                icon: 'icon-cog',
+                                isOpen: false,
+                                showChildren: true,
+                                children: [
+                                    // {
+                                    //     id: 'member',
+                                    //     name: '成员管理',
+                                    //     icon: ''
+                                ]
+                            }
                         ]
                     }
                 ]
@@ -103,7 +99,7 @@
         methods: {
             goBack () {
                 this.$router.push({
-                    name: 'atomList',
+                    name: 'workList',
                     params: {
                         type: 'template'
                     }

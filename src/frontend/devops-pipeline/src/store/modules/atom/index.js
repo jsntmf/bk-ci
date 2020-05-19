@@ -42,6 +42,7 @@ export default {
         containerTypeList: [],
         editingElementPos: null,
         isPropertyPanelVisible: false,
+        isShowCompleteLog: false,
         isStagePopupShow: false,
         isAddParallelContainer: false,
         insertStageIndex: null,
@@ -49,7 +50,12 @@ export default {
         execDetail: null,
         globalEnvs: null,
         executeStatus: false,
-        saveStatus: false
+        saveStatus: false,
+        authSettingEditing: false,
+        stageTagList: [],
+        defaultStageTags: [],
+        showReviewDialog: false,
+        reviewInfo: null
     },
     mutations,
     actions,

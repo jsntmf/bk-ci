@@ -2,14 +2,15 @@
     <bk-dialog
         class="add-member-dialog"
         v-model="showDialog"
-        title="新增成员"
-        ok-text="保存"
-        :width="width"
+        :title="$t('store.新增成员')"
+        :ok-text="$t('store.保存')"
+        :width="580"
         :close-icon="addMemberConf.closeIcon"
         :quick-close="addMemberConf.quickClose"
+        @confirm="toConfirm"
+        @cancel="toCloseDialog"
     >
         <main class="member-logo-content"
-           
             v-bkloading="{
                 isLoading: loading.isLoading,
                 title: loading.title
@@ -17,20 +18,21 @@
             <div class="add-member-content">
                 <form class="bk-form add-member-form g-form-radio" onsubmit="return false">
                     <div class="bk-form-item member-form-item is-required">
-                        <label class="bk-label">成员名称：</label>
+                        <label class="bk-label"> {{ $t('store.成员名称') }} </label>
                         <div class="bk-form-content member-item-content">
-                            <input type="text" class="bk-form-input member-name-input" placeholder="请输入成员名称"
+                            <bk-input type="text" :placeholder="$t('store.请输入成员名称')"
                                 name="memberName"
                                 v-model="memberForm.memberName"
                                 v-validate="{
                                     required: true
                                 }"
                                 :class="{ 'is-danger': errors.has('memberName') }">
-                            <div v-if="errors.has('memberName')" class="error-tips">成员名称不能为空</div>
+                            </bk-input>
+                            <div v-if="errors.has('memberName')" class="error-tips"> {{ $t('store.成员名称不能为空') }} </div>
                         </div>
                     </div>
                     <div class="bk-form-item member-form-item is-required">
-                        <label class="bk-label">角色：</label>
+                        <label class="bk-label"> {{ $t('store.角色：') }} </label>
                         <div class="bk-form-content member-item-content">
                             <bk-radio-group v-model="memberForm.type" class="radio-group">
                                 <bk-radio :value="entry.value" v-for="(entry, key) in typeList" :key="key">{{entry.label}}</bk-radio>
@@ -38,7 +40,7 @@
                         </div>
                     </div>
                     <div class="bk-form-item member-form-item is-required">
-                        <label class="bk-label">权限列表：</label>
+                        <label class="bk-label"> {{ $t('store.权限列表：') }} </label>
                         <div class="bk-form-content permission-list-content">
                             <div class="permission-name" :class="{ 'active-item': entry.active }" v-for="(entry, index) in permissionList" :key="index">
                                 {{ entry.name }}
@@ -48,28 +50,15 @@
                 </form>
             </div>
         </main>
-        <template slot="footer">
-            <div class="bk-dialog-outer">
-                <template>
-                    <bk-button theme="primary" class="bk-dialog-btn bk-dialog-btn-confirm bk-btn-primary"
-                        @click="toConfirm">
-                        保存
-                    </bk-button>
-                    <bk-button class="bk-dialog-btn bk-dialog-btn-cancel" @click="toCloseDialog">
-                        取消
-                    </bk-button>
-                </template>
-            </div>
-        </template>
     </bk-dialog>
 </template>
 
 <script>
-    import { mapGetters } from 'vuex'
-
     export default {
         props: {
-            showDialog: Boolean
+            showDialog: Boolean,
+            projectCode: String,
+            permissionList: Array
         },
         data () {
             return {
@@ -79,11 +68,6 @@
                 typeList: [
                     { label: 'Owner', value: 'ADMIN' },
                     { label: 'Developer', value: 'DEVELOPER' }
-                ],
-                permissionList: [
-                    { name: '插件开发', active: true },
-                    { name: '版本发布', active: true },
-                    { name: '成员管理', active: true }
                 ],
                 memberForm: {
                     memberName: '',
@@ -96,12 +80,6 @@
             }
         },
         computed: {
-            ...mapGetters('store', {
-                'currentAtom': 'getCurrentAtom'
-            }),
-            atomCode () {
-                return this.$route.params.atomCode
-            },
             addMemberConf () {
                 return {
                     hasHeader: false,
@@ -112,30 +90,33 @@
             }
         },
         watch: {
-            'memberForm.type' (val) {
-                if (val === 'ADMIN') {
-                    this.permissionList.map(item => {
-                        item.active = true
+            'memberForm.type': {
+                handler (val) {
+                    this.permissionList.forEach((item) => {
+                        item.active = (item.type === val || val === 'ADMIN')
                     })
-                } else {
-                    this.permissionList[2].active = false
-                    this.permissionList[3].active = false
-                }
+                },
+                immediate: true
             },
             showDialog (val) {
                 if (!val) {
-                    this.$validator.reset()
+                    this.nameError = false
                     this.memberForm.memberName = ''
                     this.memberForm.type = 'ADMIN'
                 }
             }
         },
         methods: {
-            async toConfirm () {
-                const valid = await this.$validator.validate()
-                if (valid) {
+            toConfirm () {
+                if (!this.memberForm.memberName) {
+                    this.nameError = true
+                    this.$bkMessage({
+                        message: this.$t('store.请输入成员名称'),
+                        theme: 'error'
+                    })
+                    this.$emit('cancelHandle')
+                } else {
                     const params = {
-                        atomCode: this.atomCode,
                         type: this.memberForm.type,
                         member: []
                     }
@@ -162,15 +143,16 @@
             }
         }
         .add-member-form {
+            flex: 1;
             padding: 25px 0 15px;
-            width: 96%;
             text-align: left;
             .bk-label {
-                width: 100px;
+                padding-right: 18px;
+                width: 95px;
                 font-weight: normal;
             }
             .bk-form-content {
-                margin-left: 100px;
+                margin-left: 95px;
             }
             .prompt-tips {
                 font-size: 12px;
@@ -193,7 +175,7 @@
             display: flex;
             .permission-name {
                 margin-left: 16px;
-                padding: 4px 6px;
+                padding: 0px 6px;
                 border: 1px solid $borderColor;
                 border-radius: 22px;
                 font-size: 12px;
@@ -205,7 +187,7 @@
             .active-item {
                 border-color: $primaryColor;
                 color: $fontBoldColor;
-                .bk-icon {
+                .devops-icon {
                     color: $primaryColor;
                 }
             }

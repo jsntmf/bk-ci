@@ -30,6 +30,7 @@ import (
 	"github.com/astaxie/beego/logs"
 	"pkg/collector"
 	"pkg/config"
+	"pkg/cron"
 	"pkg/heartbeat"
 	"pkg/job"
 	"pkg/pipeline"
@@ -44,17 +45,20 @@ func Run() {
 		logs.Warn("agent startup failed: ", err.Error())
 	}
 
-	//数据采集
+	// 数据采集
 	go collector.DoAgentCollect()
 
-	//心跳
+	// 心跳
 	go heartbeat.DoAgentHeartbeat()
 
-	//检查升级
+	// 检查升级
 	go upgrade.DoPollAndUpgradeAgent()
 
-	//启动pipeline
+	// 启动pipeline
 	go pipeline.Start()
+
+	// 定期清理 24小时内生成 hs_err 文件
+	go cron.CleanDumpFileJob(1, 24)
 
 	job.DoPollAndBuild()
 }

@@ -1,8 +1,24 @@
 <template>
-    <div class="devops-iframe-content" :class="{ 'showTopPrompt': showExplorerTips === 'true' && isShowPreviewTips && !chromeExplorer }">
-        <div v-if="isAnyPopupShow" class="iframe-over-layout"></div>
-        <div :style="{ height: &quot;100%&quot; }" v-bkloading="{ isLoading }">
-            <iframe v-if="src" id="iframe-box" allowfullscreen ref="iframeEle" @load="onLoad" :src="src"></iframe>
+    <div
+        class="devops-iframe-content"
+        :class="{ 'showTopPrompt': showExplorerTips === 'true' && isShowPreviewTips && !chromeExplorer }"
+    >
+        <div
+            v-if="isAnyPopupShow"
+            class="iframe-over-layout"
+        />
+        <div
+            v-bkloading="{ isLoading }"
+            :style="{ height: &quot;100%&quot; }"
+        >
+            <iframe
+                v-if="src"
+                id="iframe-box"
+                ref="iframeEle"
+                allowfullscreen
+                :src="src"
+                @load="onLoad"
+            />
         </div>
     </div>
 </template>
@@ -13,6 +29,7 @@
     import eventBus from '../utils/eventBus'
     import { urlJoin, queryStringify, getServiceAliasByPath } from '../utils/util'
     import { State } from 'vuex-class'
+    import * as cookie from 'js-cookie'
 
     Component.registerHooks([
         'beforeRouteEnter',
@@ -33,6 +50,7 @@
         }
 
         @State projectList
+        @State currentPage
         @State isAnyPopupShow
         @State isShowPreviewTips
         @State user
@@ -54,8 +72,10 @@
         leaveConfirm (to, from, next) {
             this.leaving = true
             this.$bkInfo({
-                title: '确认要离开',
-                subTitle: '离开后，新编辑的数据将丢失',
+                type: 'warning',
+                theme: 'warning',
+                title: this.$t('leaveConfirmTitle'),
+                subTitle: this.$t('leaveConfirmMsg'),
                 confirmFn: () => {
                     this.src = null
                     this.$nextTick(() => {
@@ -74,10 +94,10 @@
         }
 
         get needLoading (): boolean {
-            return this.$route.name === 'codecc' || this.$route.name === 'job'
+            return this.$route.name === 'job'
         }
 
-        get chromeExplorer () :boolean {
+        get chromeExplorer (): boolean {
             const explorer = window.navigator.userAgent
             return explorer.indexOf('Chrome') >= 0 && explorer.indexOf('QQ') === -1
         }
@@ -99,28 +119,27 @@
             const hash = this.$route.hash
             
             if (showProjectList) {
-                const reg = /^\/?\w+\/(([\w\-]+)\/?)(\S*)\/?$/
+                const reg = /^\/?\w+\/(([\w-]+)\/?)(\S*)\/?$/
                 const matchResult = path.match(reg)
                 const { projectId } = this.$route.params
                 const initPath = matchResult ? matchResult[3] : ''
 
                 if (projectIdType === 'path') {
-                    this.src = urlJoin(window.currentPage.iframe_url, projectId, initPath) + `${query ? '?' + query : ''}` + hash
+                    this.src = urlJoin(this.currentPage.iframe_url, projectId, initPath) + `${query ? '?' + query : ''}` + hash
                 } else {
                     const query = Object.assign(this.$route.query, {
                         projectId
                     })
-                    this.src = urlJoin(window.currentPage.iframe_url, initPath) + '?' + queryStringify(query) + hash
-                    console.log(window.currentPage.iframe_url, initPath)
+                    this.src = urlJoin(this.currentPage.iframe_url, initPath) + '?' + queryStringify(query) + hash
                 }
             } else {
                 const reg = /^\/?\w+\/(\S*)\/?$/
                 const initPath = path.match(reg) ? path.replace(reg, '$1') : ''
                 const query = Object.assign({
-                    project_code: localStorage.getItem('projectId')
+                    project_code: cookie.get(X_DEVOPS_PROJECT_ID)
                 }, this.$route.query)
-                console.log(window.currentPage.iframe_url, initPath)
-                this.src = urlJoin(window.currentPage.iframe_url, initPath) + '?' + queryStringify(query) + hash
+
+                this.src = urlJoin(this.currentPage.iframe_url, initPath) + '?' + queryStringify(query) + hash
             }
         }
         onLoad () {
@@ -129,6 +148,8 @@
                 const childWin = this.$refs.iframeEle.contentWindow
                 this.iframeUtil.syncProjectList(childWin, this.projectList)
                 this.iframeUtil.syncUserInfo(childWin, this.user)
+                this.iframeUtil.syncLocale(childWin, this.$i18n.locale)
+                
                 if (this.$route.params.projectId) {
                     this.iframeUtil.syncProjectId(childWin, this.$route.params.projectId)
                 }
@@ -147,9 +168,6 @@
                 this.isLoading = true
                 this.init()
             } else if (params.projectId !== oldParams.projectId) {
-                if (this.needLoading) {
-                    this.isLoading = true
-                }
                 if (this.$refs.iframeEle && params.projectId) { // 将当前projectId同步到子窗口
                     this.iframeUtil.syncProjectId(this.$refs.iframeEle.contentWindow, params.projectId)
                 }
@@ -169,6 +187,14 @@
             if (this.$refs.iframeEle) {
                 const childWin = this.$refs.iframeEle.contentWindow
                 this.iframeUtil.syncUserInfo(childWin, user)
+            }
+        }
+
+        @Watch('$i18n.locale')
+        handleLocaleChange (locale) {
+            if (this.$refs.iframeEle) {
+                const childWin = this.$refs.iframeEle.contentWindow
+                this.iframeUtil.syncLocale(childWin, locale)
             }
         }
     }

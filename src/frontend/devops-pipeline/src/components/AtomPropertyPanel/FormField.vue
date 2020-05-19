@@ -44,20 +44,20 @@
             const { label, inline, required, $slots, isError, errorMsg, desc, docsLink, descLink, descLinkText } = this
             return (
                 <div class={{ 'form-field': true, 'bk-form-item': !inline, 'bk-form-inline-item': inline, 'is-required': required, 'is-danger': isError }} >
-                    { label && <label class='bk-label atom-form-label'>{label}：
+                    { label && <label title={label} class='bk-label atom-form-label'>{label}：
                         { docsLink
                             && <a target="_blank" href={docsLink}><i class="bk-icon icon-question-circle"></i></a>
                         }
                     </label> }
                     { label.trim() && desc.trim() && <bk-popover placement="top" class="form-field-icon">
-                        <i class="bk-icon icon-info-circle "></i>
-                        <div slot="content" style="white-space: pre-wrap; font-size: 12px;">
+                        <i class="bk-icon icon-info-circle"></i>
+                        <div slot="content" style="white-space: pre-wrap; font-size: 12px; max-width: 500px;">
                             <div> {desc} { descLink && <a class="desc-link" target="_blank" href={descLink}>{descLinkText}</a>} </div>
                         </div>
                     </bk-popover> }
                     <div class='bk-form-content'>
                         {$slots.default}
-                        {isError ? $slots.errorTip || <span class='bk-form-help is-danger'>{label + errorMsg}</span> : null}
+                        {isError ? $slots.errorTip || <span class='bk-form-help is-danger'>{errorMsg}</span> : null}
                     </div>
                 </div>
             )
@@ -77,17 +77,12 @@
     .form-field-icon {
         position: relative;
         left: -20px;
-        top: 4px;
+        top: 6px;
     }
     .bk-sideslider-wrapper .bk-form-item.is-required .bk-label, .bk-form-inline-item.is-required .bk-label {
         margin-right: 10px
     }
     .desc-link {
         color: #3c96ff;
-    }
-    .atom-form-label {
-        height: 36px;
-        line-height: 36px;
-        font-size: 12px;
     }
 </style>

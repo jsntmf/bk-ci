@@ -39,9 +39,9 @@ agent 使用 golang 编写，目前支持 linux/windows/macos 三种系统，其
 
 在示例/data/bkee/bkci的主目录下：
 
-- 将源码包中的support-files/agent-package目录复制到位置 /data/bkee/bkci/agent-package,
+- 将源码包中的support-files/agent-package目录复制到位置 /data/bkee/ci/agent-package,
 
-- 该目录路径由/data/bkee/etc/bkci/application-environment.yml 中指定的。请确认路径是否一致。
+- 该目录路径由/data/bkee/etc/ci/application-environment.yml 中指定的。请确认路径是否一致。
 - 请按以下要求存放相应的安装包：
 
   - Agent安装包目录说明(agent-package)
@@ -118,5 +118,5 @@ devops.master.restart.hour=0
 - devops.agent.id 是Agent的ID，用户下载安装时会自动替换
 - devops.agent.secret.key Agent的密钥，用户下载安装时会自动替换
 - devops.parallel.task.count 构建并发数量，默认4个构建并发
-- landun.gateway 蓝盾网关，用户下载安装时会自动替换
+- landun.gateway bkci网关，用户下载安装时会自动替换
 - landun.env 环境类型，用户下载安装时会自动替换
